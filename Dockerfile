@@ -13,7 +13,7 @@ RUN bison -d sql_parser.y \
  && gcc sql_parser.tab.c lex.yy.c -o validador
 
 # ── Stage 2: Build del frontend ──────────────────────────────────────────────
-FROM node:18-alpine AS frontend
+FROM node:18-slim AS frontend
 
 WORKDIR /build
 COPY frontend/package*.json ./
@@ -22,7 +22,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ── Stage 3: Runtime ─────────────────────────────────────────────────────────
-FROM node:18-alpine
+FROM node:18-slim
 
 WORKDIR /app
 
