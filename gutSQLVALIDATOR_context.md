@@ -17,24 +17,25 @@ fondo muy oscuro). El sistema corre completamente en local (localhost).
 | Análisis sintáctico | Bison (genera parser.tab.c y parser.tab.h) |
 | Compilación | GCC (MinGW32 en Windows) |
 | Servidor/Puente | Node.js + Express |
-| Interfaz web | HTML + CSS + JavaScript puro |
-| Estilos | Tailwind CSS via CDN |
-| Diagrama sintáctico | D3.js via CDN (árbol visual con cajas y flechas) |
+| Frontend framework | React + Vite |
+| Estilos | Tailwind CSS |
+| Animaciones | Framer Motion (efectos ciberpunk) |
+| Árbol sintáctico | React Flow (nodos interactivos) |
 
 ---
 
 ## Arquitectura del Sistema
 
 ```
-[Navegador Web - Puerto 3000]
+[Navegador Web - Puerto 5173 (Vite dev) / Puerto 3000 (producción)]
         ↓  POST /validate  (body: { sql: "SELECT * FROM tabla" })
-[Servidor Express - index.js]
+[Servidor Express - index.js - Puerto 3000]
         ↓  child_process.exec()
 [Ejecutable C - validador.exe (Windows) / validador (Linux)]
         ↓  stdout: JSON con tokens + árbol sintáctico + resultado
 [Express recibe stdout]
         ↓  res.json(parsed)
-[Navegador renderiza tabla de tokens + árbol D3 + badge resultado]
+[React renderiza tabla de tokens + árbol React Flow + badge resultado]
 ```
 
 ---
@@ -61,18 +62,126 @@ gutSQLVALIDATOR/
 │   ├── sql_parser.y           → gramática Bison para SQL
 │   ├── validador.exe          → ejecutable compilado (Windows)
 │   ├── validador              → ejecutable compilado (Linux/Mac)
-│   └── compile.sh             → script de compilación automática
+│   ├── compile.sh             → script de compilación (Linux/Mac)
+│   └── compile.bat            → script de compilación (Windows)
 │
 ├── servidor/
 │   ├── index.js               → servidor Express (puente Node↔C)
 │   └── package.json           → dependencias (express, cors)
 │
-├── web/
-│   ├── index.html             → interfaz principal
-│   ├── app.js                 → lógica frontend (fetch, render)
-│   └── style.css              → estilos ciberpunk adicionales
+├── frontend/                  → proyecto React + Vite
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   ├── package.json           → react, vite, tailwindcss, framer-motion, reactflow
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx            → layout principal
+│       ├── components/
+│       │   ├── SqlEditor.jsx       → textarea del SQL con estilos ciberpunk
+│       │   ├── TokenTable.jsx      → tabla de tokens animada
+│       │   ├── SyntaxTree.jsx      → árbol React Flow
+│       │   ├── ResultBadge.jsx     → badge válido/inválido con Framer Motion
+│       │   └── Scanlines.jsx       → overlay de efecto scanline (CSS)
+│       └── styles/
+│           └── cyber.css           → variables CSS ciberpunk y efectos globales
 │
 └── README.md                  → instrucciones de instalación y uso
+```
+
+---
+
+## Dependencias del Frontend
+
+```json
+{
+  "dependencies": {
+    "react": "^18",
+    "react-dom": "^18",
+    "framer-motion": "^11",
+    "reactflow": "^11"
+  },
+  "devDependencies": {
+    "vite": "^5",
+    "@vitejs/plugin-react": "^4",
+    "tailwindcss": "^3",
+    "autoprefixer": "^10",
+    "postcss": "^8"
+  }
+}
+```
+
+---
+
+## Uso de Framer Motion (animaciones ciberpunk)
+
+Framer Motion se usa para dar vida a la interfaz con efectos acordes al tema ciberpunk:
+
+```jsx
+// Aparición del panel de tokens
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.4, ease: "easeOut" }}
+>
+  <TokenTable tokens={tokens} />
+</motion.div>
+
+// Badge de resultado válido/inválido
+<motion.div
+  animate={{ scale: [1, 1.08, 1] }}
+  transition={{ duration: 0.3 }}
+>
+  <ResultBadge valido={resultado.valido} />
+</motion.div>
+
+// Filas de la tabla de tokens en cascada (stagger)
+const containerVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04 } }
+};
+const rowVariants = {
+  hidden: { opacity: 0, x: -16 },
+  show:   { opacity: 1, x: 0 }
+};
+
+// Botón VALIDAR con hover y tap ciberpunk
+<motion.button
+  whileHover={{ scale: 1.05, boxShadow: "0 0 16px #00d4ff" }}
+  whileTap={{ scale: 0.96 }}
+>
+  VALIDAR
+</motion.button>
+```
+
+---
+
+## Uso de React Flow (árbol sintáctico)
+
+React Flow reemplaza a D3.js para renderizar el árbol sintáctico. Los nodos y aristas
+se generan a partir del JSON que devuelve el ejecutable C.
+
+```jsx
+import ReactFlow, { Background, Controls } from 'reactflow';
+import 'reactflow/dist/style.css';
+
+// Convertir el árbol JSON del ejecutable a nodos/aristas de React Flow
+function treeToFlow(node, nodes = [], edges = [], parent = null, pos = { x: 0, y: 0 }) {
+  const id = `node-${nodes.length}`;
+  nodes.push({ id, position: pos, data: { label: node.nombre }, type: 'cyberNode' });
+  if (parent) edges.push({ id: `e-${parent}-${id}`, source: parent, target: id });
+  node.hijos?.forEach((hijo, i) => {
+    treeToFlow(hijo, nodes, edges, id, { x: pos.x + i * 180, y: pos.y + 100 });
+  });
+  return { nodes, edges };
+}
+
+// Nodo personalizado con estilo ciberpunk
+const CyberNode = ({ data }) => (
+  <div className="px-3 py-2 rounded border border-cyan-400 bg-[#0d1f3c] text-cyan-300 font-mono text-sm shadow-[0_0_8px_#00d4ff55]">
+    {data.label}
+  </div>
+);
 ```
 
 ---
@@ -130,11 +239,7 @@ Formato esperado:
     { "tipo": "KEYWORD", "valor": "SELECT", "linea": 1 },
     { "tipo": "OPERATOR", "valor": "*", "linea": 1 },
     { "tipo": "KEYWORD", "valor": "FROM", "linea": 1 },
-    { "tipo": "IDENTIFIER", "valor": "empleados", "linea": 1 },
-    { "tipo": "KEYWORD", "valor": "WHERE", "linea": 1 },
-    { "tipo": "IDENTIFIER", "valor": "id", "linea": 1 },
-    { "tipo": "OPERATOR", "valor": "=", "linea": 1 },
-    { "tipo": "NUMBER", "valor": "5", "linea": 1 }
+    { "tipo": "IDENTIFIER", "valor": "empleados", "linea": 1 }
   ],
   "arbol": {
     "nombre": "CONSULTA",
@@ -148,19 +253,6 @@ Formato esperado:
       {
         "nombre": "FROM",
         "hijos": [{ "nombre": "empleados", "hijos": [] }]
-      },
-      {
-        "nombre": "WHERE",
-        "hijos": [
-          {
-            "nombre": "CONDICION",
-            "hijos": [
-              { "nombre": "id", "hijos": [] },
-              { "nombre": "=", "hijos": [] },
-              { "nombre": "5", "hijos": [] }
-            ]
-          }
-        ]
       }
     ]
   }
@@ -172,7 +264,7 @@ En caso de error:
 {
   "valido": false,
   "mensaje": "Error sintáctico en línea 1: se esperaba FROM después de la lista de columnas",
-  "tokens": [ ... ],
+  "tokens": [ "..." ],
   "arbol": null
 }
 ```
@@ -182,22 +274,22 @@ En caso de error:
 ## Servidor Node.js (index.js) — Comportamiento esperado
 
 - Levantar Express en puerto 3000
-- Servir los archivos estáticos de la carpeta /web
+- Servir los archivos estáticos del build de React (`/frontend/dist`)
 - Exponer endpoint POST /validate
-  - Recibe body JSON: { "sql": "..." }
+  - Recibe body JSON: `{ "sql": "..." }`
   - Llama al ejecutable: `./analizador/validador` pasando el SQL como argumento
   - En Windows usar: `analizador\\validador.exe`
   - Parsea el stdout como JSON
   - Retorna ese JSON al navegador
 - Manejar errores si el ejecutable no existe o falla
-- Usar cors() para evitar problemas de CORS
+- Usar cors() para evitar problemas de CORS durante desarrollo (Vite en 5173 → Express en 3000)
 - El servidor detecta automáticamente si corre en Windows o Linux para usar el ejecutable correcto
 
 ---
 
 ## Interfaz Web — Diseño Ciberpunk
 
-### Paleta de colores (CSS variables)
+### Paleta de colores (CSS variables en cyber.css)
 ```css
 --bg-primary: #050a14        /* fondo principal casi negro azulado */
 --bg-secondary: #0a1628      /* fondo secundario paneles */
@@ -214,10 +306,33 @@ En caso de error:
 --error: #ff3366             /* rojo para error */
 ```
 
+### Tailwind — configuración del tema ciberpunk
+```js
+// tailwind.config.js
+module.exports = {
+  content: ['./src/**/*.{jsx,js}'],
+  theme: {
+    extend: {
+      colors: {
+        'cyber-blue': '#00d4ff',
+        'cyber-yellow': '#ffd700',
+        'cyber-bg': '#050a14',
+        'cyber-card': '#0d1f3c',
+        'cyber-success': '#00ff88',
+        'cyber-error': '#ff3366',
+      },
+      fontFamily: {
+        mono: ['"Share Tech Mono"', 'monospace'],
+        display: ['Orbitron', 'sans-serif'],
+      },
+    },
+  },
+};
+```
+
 ### Tipografía
-- Títulos/headers: fuente monospace estilo terminal (ej: 'Share Tech Mono', 'Orbitron', o similar desde Google Fonts)
-- Cuerpo/tokens: fuente monospace limpia
-- Evitar Inter, Roboto, Arial
+- Títulos/headers: `font-display` → Orbitron (Google Fonts)
+- Código/tokens: `font-mono` → Share Tech Mono (Google Fonts)
 
 ### Layout principal
 ```
@@ -233,37 +348,37 @@ En caso de error:
 │                    │                             │
 ├────────────────────┴────────────────────────────┤
 │                                                  │
-│   ÁRBOL SINTÁCTICO (D3.js — cajas y flechas)    │
+│   ÁRBOL SINTÁCTICO (React Flow — nodos custom)  │
 │                                                  │
 └─────────────────────────────────────────────────┘
 ```
 
 ### Efectos visuales requeridos
-- Efecto scanline sutil sobre toda la pantalla (CSS overlay)
-- Glow azul en bordes de paneles y botones
-- Animación de "typing" o "loading" al analizar
-- Bordes con efecto neon (box-shadow con color azul)
-- Botón VALIDAR con efecto hover que intensifica el glow amarillo
-- Fondo con patrón de grid muy sutil (como circuito)
+- Efecto scanline sutil sobre toda la pantalla (CSS overlay en Scanlines.jsx)
+- Glow azul en bordes de paneles y botones (Tailwind + cyber.css)
+- Animación de "loading" al analizar (Framer Motion + spinner)
+- Bordes con efecto neon (`shadow-[0_0_12px_#00d4ff]` en Tailwind)
+- Botón VALIDAR con `whileHover` que intensifica el glow amarillo
+- Fondo con patrón de grid muy sutil (background-image CSS)
 
 ### Tabla de tokens — colores por tipo
 | Tipo de token | Color |
 |---|---|
-| KEYWORD (SELECT, FROM, etc.) | Azul brillante #00d4ff |
-| IDENTIFIER (nombres de tablas/columnas) | Blanco/azul claro |
-| NUMBER | Amarillo #ffd700 |
-| STRING | Verde claro #00ff88 |
-| OPERATOR (=, !=, etc.) | Naranja #ff8800 |
-| PUNCTUATION (coma, punto, paréntesis) | Gris claro |
-| ERROR | Rojo #ff3366 |
+| KEYWORD (SELECT, FROM, etc.) | `text-cyber-blue` — #00d4ff |
+| IDENTIFIER (nombres de tablas/columnas) | `text-[#e0f0ff]` |
+| NUMBER | `text-cyber-yellow` — #ffd700 |
+| STRING | `text-cyber-success` — #00ff88 |
+| OPERATOR (=, !=, etc.) | `text-[#ff8800]` |
+| PUNCTUATION (coma, punto, paréntesis) | `text-gray-400` |
+| ERROR | `text-cyber-error` — #ff3366 |
 
-### Árbol sintáctico D3.js
-- Nodos: rectángulos redondeados con fondo azul oscuro y borde glow
-- Texto de nodos: fuente monospace, color azul claro
-- Flechas/enlaces: líneas azules con animación de flujo (stroke-dashoffset)
-- Nodos hoja (terminales): color diferente, amarillo o verde
-- El árbol debe ser interactivo: zoom, drag, hover con tooltip
-- Si el árbol es grande, debe tener scroll/zoom automático para ajustarse
+### Árbol sintáctico — React Flow
+- Nodos custom tipo `cyberNode`: fondo `#0d1f3c`, borde `#00d4ff`, texto `font-mono`
+- Aristas: color azul con `stroke: #00d4ff`
+- Layout: dagre o manual top-down (raíz arriba, hojas abajo)
+- Interactividad: zoom, drag, pan incluidos por defecto en React Flow
+- Si `arbol` es `null` (error sintáctico): mostrar panel de error animado con Framer Motion
+- Fondo del canvas: `<Background color="#00d4ff" gap={24} size={0.5} />`
 
 ---
 
@@ -279,13 +394,13 @@ CREATE, TABLE, DROP, ALTER, INDEX, PRIMARY, KEY, FOREIGN,
 REFERENCES, UNIQUE, DEFAULT, CONSTRAINT, CHECK
 
 ### Tipos de tokens adicionales
-- IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*
-- NUMBER: [0-9]+(\.[0-9]+)?
-- STRING: '[^']*'
-- OPERATOR: =, !=, <>, <, >, <=, >=
-- PUNCTUATION: (, ), ,, ;, ., *
-- COMMENT: --[^\n]* (ignorar)
-- WHITESPACE: [ \t\n\r]+ (ignorar)
+- IDENTIFIER: `[a-zA-Z_][a-zA-Z0-9_]*`
+- NUMBER: `[0-9]+(\.[0-9]+)?`
+- STRING: `'[^']*'`
+- OPERATOR: `=, !=, <>, <, >, <=, >=`
+- PUNCTUATION: `(, ), ,, ;, ., *`
+- COMMENT: `--[^\n]*` (ignorar)
+- WHITESPACE: `[ \t\n\r]+` (ignorar)
 
 ---
 
@@ -308,7 +423,6 @@ select_stmt      → SELECT columnas FROM tabla_ref
                  | SELECT columnas FROM tabla_ref where_clause group_clause
                  | SELECT columnas FROM tabla_ref where_clause order_clause
                  | SELECT columnas FROM tabla_ref where_clause limit_clause
-                 | (combinaciones de las anteriores)
 
 columnas         → *
                  | lista_columnas
@@ -376,24 +490,23 @@ funcion_agregacion → COUNT ( * )
 
 ---
 
-## Script de compilación (compile.sh)
+## Scripts de compilación
 
-Debe detectar el OS y compilar correctamente:
-```bash
-#!/bin/bash
-# Para Linux/Mac
-bison -d sql_parser.y
-flex sql_lexer.l
-gcc sql_parser.tab.c lex.yy.c -o validador
-echo "Compilado exitosamente"
-```
-
-Y un compile.bat para Windows:
+### compile.bat (Windows)
 ```bat
 bison -d sql_parser.y
 flex sql_lexer.l
 gcc sql_parser.tab.c lex.yy.c -o validador.exe
 echo Compilado exitosamente
+```
+
+### compile.sh (Linux/Mac)
+```bash
+#!/bin/bash
+bison -d sql_parser.y
+flex sql_lexer.l
+gcc sql_parser.tab.c lex.yy.c -o validador
+echo "Compilado exitosamente"
 ```
 
 ---
@@ -402,17 +515,20 @@ echo Compilado exitosamente
 
 El README debe incluir:
 1. Descripción del proyecto
-2. Requisitos previos (GCC/MinGW, Flex, Bison, Node.js)
+2. Requisitos previos (GCC/MinGW, Flex, Bison, Node.js, npm)
 3. Cómo verificar que están instalados (comandos --version)
 4. Pasos de instalación:
    - Clonar repositorio
-   - Compilar el analizador (compile.sh o compile.bat)
-   - npm install en carpeta servidor
-   - node index.js para levantar el servidor
+   - Compilar el analizador (`compile.bat` o `compile.sh`)
+   - `npm install` en carpeta `/servidor`
+   - `npm install` en carpeta `/frontend`
+   - `npm run build` en `/frontend` para producción
+   - `node index.js` desde `/servidor` para levantar todo
    - Abrir http://localhost:3000
-5. Ejemplos de consultas válidas e inválidas para probar
-6. Descripción de la arquitectura
-7. Nombres del equipo y curso
+5. Modo desarrollo: `npm run dev` en `/frontend` (puerto 5173) + `node index.js` (puerto 3000)
+6. Ejemplos de consultas válidas e inválidas para probar
+7. Descripción de la arquitectura
+8. Nombres del equipo y curso
 
 ---
 
@@ -447,17 +563,17 @@ UPDATE SET nombre = 'Juan';
 
 ## Notas importantes para la IA de código
 
-1. El ejecutable C recibe el SQL como argumento de línea de comandos (argv[1])
+1. El ejecutable C recibe el SQL como argumento de línea de comandos (`argv[1]`)
 2. El ejecutable imprime SOLO JSON válido por stdout, nada más
-3. Los errores de Bison (yyerror) deben capturarse y formatear como JSON de error
+3. Los errores de Bison (`yyerror`) deben capturarse y formatear como JSON de error
 4. Node.js detecta automáticamente si es Windows o Linux para llamar al ejecutable correcto
-5. El frontend hace polling o espera la respuesta del POST antes de renderizar
-6. D3.js para el árbol debe usar layout tipo "tree" horizontal (raíz a la izquierda, hojas a la derecha)
-7. El árbol debe renderizarse en un SVG dentro de un div con overflow scroll
-8. La tabla de tokens debe tener columnas: #, Tipo, Valor, Línea
-9. Usar Google Fonts: 'Orbitron' para títulos y 'Share Tech Mono' para código/tokens
-10. Todo el CSS de efectos ciberpunk (scanlines, glow, grid pattern) va en style.css
-11. El botón VALIDAR debe tener estado de loading mientras espera respuesta
-12. Si el árbol es null (error sintáctico), mostrar panel de error en lugar del árbol
-13. El proyecto debe funcionar en Windows con MinGW32 + Flex + Bison instalados
-14. node index.js desde la carpeta /servidor debe levantar todo correctamente
+5. El frontend React hace fetch al POST `/validate` y actualiza estado con `useState`
+6. React Flow para el árbol usa layout dagre (`@dagrejs/dagre`) para posicionamiento automático
+7. El árbol se renderiza con nodos custom `cyberNode` estilizados con Tailwind
+8. La tabla de tokens usa Framer Motion con `staggerChildren` para animar filas en cascada
+9. Usar Google Fonts: Orbitron para títulos y Share Tech Mono para código/tokens
+10. El botón VALIDAR tiene estado de loading con spinner animado (Framer Motion)
+11. Si el árbol es `null` (error sintáctico), mostrar panel de error animado con Framer Motion
+12. El proyecto debe funcionar en Windows con MinGW + Flex + Bison instalados
+13. En desarrollo: Vite corre en puerto 5173 con proxy a Express en puerto 3000
+14. En producción: Express sirve el build de React desde `/frontend/dist`
