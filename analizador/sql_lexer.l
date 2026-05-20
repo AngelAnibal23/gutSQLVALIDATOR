@@ -3,6 +3,12 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#  define kw_cmp _stricmp
+#else
+#  define kw_cmp strcasecmp
+#endif
+
 int linea_actual = 1;
 
 #define MAX_TOKENS 4096
@@ -30,9 +36,9 @@ void agregar_token(const char *tipo, const char *valor) {
     token_count++;
 }
 
-/* Compara keyword ignorando mayusculas/minusculas (compatible MinGW) */
+/* Compara keyword ignorando mayusculas/minusculas */
 static int kw(const char *a, const char *b) {
-    return _stricmp(a, b) == 0;
+    return kw_cmp(a, b) == 0;
 }
 %}
 
