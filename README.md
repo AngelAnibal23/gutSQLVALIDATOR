@@ -20,13 +20,15 @@ Analizador léxico y sintáctico de SQL construido desde cero con Flex, Bison y 
 
 ### Windows — Toolchain C (requerido para compilar el analizador)
 
-Descargar e instalar en este orden:
+Los instaladores de Flex y Bison están incluidos en la raíz del repositorio:
 
-| Herramienta | Descarga |
-|-------------|----------|
-| **GnuWin32** (Flex + Bison) | https://gnuwin32.sourceforge.net/packages/flex.htm |
-| | https://gnuwin32.sourceforge.net/packages/bison.htm |
-| **TDM-GCC-64** | https://jmeubank.github.io/tdm-gcc/ |
+| Herramienta | Versión | Archivo incluido |
+|-------------|---------|-----------------|
+| **Bison** | 2.4.1 | `bison-2.4.1-setup (1).exe` |
+| **Flex** | 2.5.4 | `flex-2.5.4a-1 (1).exe` |
+| **TDM-GCC-64** | 9.2.0 | https://jmeubank.github.io/tdm-gcc/ |
+
+Instalar en ese orden. Bison y Flex se instalan por defecto en `C:\GnuWin32\`.
 
 > **Rutas esperadas por `compile.bat`:**
 > - GnuWin32: `C:\GnuWin32\bin\`
@@ -92,6 +94,8 @@ Abrir en el navegador: **http://localhost:3000**
 
 ```
 VALIDADORSQL/
+├── bison-2.4.1-setup (1).exe   # Instalador Bison (Windows)
+├── flex-2.5.4a-1 (1).exe       # Instalador Flex (Windows)
 ├── analizador/
 │   ├── sql_lexer.l         # Analizador léxico (Flex)
 │   ├── sql_parser.y        # Gramática LALR(1) (Bison)
