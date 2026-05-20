@@ -2,7 +2,7 @@
 FROM ubuntu:22.04 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    flex bison gcc \
+    flex bison build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
