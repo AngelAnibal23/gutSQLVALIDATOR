@@ -1,0 +1,31 @@
+# Dependencias (se instalan dentro del contenedor)
+node_modules/
+servidor/node_modules/
+frontend/node_modules/
+
+# Build local del frontend (se reconstruye en el contenedor)
+frontend/dist/
+
+# Binario Windows (se recompila para Linux en el contenedor)
+analizador/validador.exe
+analizador/validador
+
+# Archivos intermedios de compilación
+analizador/lex.yy.c
+analizador/sql_parser.tab.c
+analizador/sql_parser.tab.h
+analizador/*.o
+analizador/*.out
+
+# Instaladores Windows (no necesarios en el contenedor)
+*.exe
+
+# Git
+.git/
+.gitignore
+
+# Editor / OS
+.idea/
+.DS_Store
+Thumbs.db
+*.log
