@@ -138,6 +138,23 @@ body {
 }
 
 /* ── React Flow canvas override ── */
-.react-flow__renderer        { background: transparent !important; }
-.react-flow__edge-path       { stroke: #00d4ff !important; stroke-width: 2 !important; }
-.react-flow__edge-path:hover { stroke: #ffd700 !important; }
+.react-flow__renderer { background: transparent !important; }
+
+.react-flow__edge-path,
+.react-flow__edge .react-flow__edge-path,
+.react-flow__edges .react-flow__edge-path {
+  stroke:       #00d4ff !important;
+  stroke-width: 2px     !important;
+  opacity:      1       !important;
+  fill:         none    !important;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 6 3;
+  animation: dashdraw 0.8s linear infinite;
+}
+
+@keyframes dashdraw {
+  from { stroke-dashoffset: 18; }
+  to   { stroke-dashoffset: 0; }
+}

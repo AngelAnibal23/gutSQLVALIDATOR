@@ -1,6 +1,6 @@
 const express = require('express');
 const cors    = require('cors');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const path    = require('path');
 const os      = require('os');
 
@@ -33,16 +33,7 @@ app.post('/validate', (req, res) => {
     });
   }
 
-  /* Escapar el SQL para pasarlo como argumento de shell de forma segura */
-  const sqlEscaped = sql
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"');
-
-  const cmd = isWindows
-    ? `"${EXECUTABLE}" "${sqlEscaped}"`
-    : `'${EXECUTABLE}' "${sqlEscaped}"`;
-
-  exec(cmd, { timeout: 10000 }, (error, stdout, stderr) => {
+  execFile(EXECUTABLE, [sql], { timeout: 10000 }, (error, stdout, stderr) => {
     /* El ejecutable falla si no existe o no está compilado */
     if (error && error.code === 'ENOENT') {
       return res.status(500).json({

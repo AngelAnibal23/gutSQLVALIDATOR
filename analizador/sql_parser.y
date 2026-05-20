@@ -21,7 +21,7 @@ char mensaje_error[512] = "";
 void yyerror(const char *msg) {
     es_valido = 0;
     snprintf(mensaje_error, sizeof(mensaje_error),
-             "Error sintáctico en línea %d: %s", linea_actual, msg);
+             "Error sintactico en linea %d: %s", linea_actual, msg);
 }
 
 /* Helpers para construir JSON del árbol */
@@ -71,7 +71,7 @@ char* join3(const char *a, const char *b, const char *c) {
 %type <nval> where_clause condicion expresion valor
 %type <nval> group_clause having_clause order_clause limit_clause
 %type <nval> lista_order orden_item lista_asignaciones asignacion
-%type <nval> lista_valores funcion_agregacion subconsulta
+%type <nval> lista_valores funcion_agregacion subconsulta select_options
 
 %left OR
 %left AND
@@ -101,58 +101,34 @@ consulta
 
 /* ─── SELECT ─── */
 select_stmt
-    : SELECT columnas FROM tabla_ref
-        { char *h = join2($2, $4); $$ = nodo("SELECT", h); free(h); free($2); free($4); }
-    | SELECT DISTINCT columnas FROM tabla_ref
-        { char *d = nodo("DISTINCT","");
-          char *h = join3(d, $3, $5); $$ = nodo("SELECT", h);
-          free(d); free(h); free($3); free($5); }
-    | SELECT columnas FROM tabla_ref where_clause
-        { char *h = join3($2,$4,$5); $$ = nodo("SELECT",h); free(h);free($2);free($4);free($5); }
-    | SELECT columnas FROM tabla_ref join_clause
-        { char *h = join3($2,$4,$5); $$ = nodo("SELECT",h); free(h);free($2);free($4);free($5); }
-    | SELECT columnas FROM tabla_ref join_clause where_clause
-        { char *t = join3($2,$4,$5);
-          char *h = join2(t,$6); $$ = nodo("SELECT",h);
-          free(t);free(h);free($2);free($4);free($5);free($6); }
-    | SELECT columnas FROM tabla_ref where_clause group_clause
-        { char *t = join3($2,$4,$5);
-          char *h = join2(t,$6); $$ = nodo("SELECT",h);
-          free(t);free(h);free($2);free($4);free($5);free($6); }
-    | SELECT columnas FROM tabla_ref where_clause order_clause
-        { char *t = join3($2,$4,$5);
-          char *h = join2(t,$6); $$ = nodo("SELECT",h);
-          free(t);free(h);free($2);free($4);free($5);free($6); }
-    | SELECT columnas FROM tabla_ref where_clause limit_clause
-        { char *t = join3($2,$4,$5);
-          char *h = join2(t,$6); $$ = nodo("SELECT",h);
-          free(t);free(h);free($2);free($4);free($5);free($6); }
-    | SELECT columnas FROM tabla_ref where_clause group_clause order_clause
-        { char *t = join3($2,$4,$5); char *t2 = join2(t,$6);
-          char *h = join2(t2,$7); $$ = nodo("SELECT",h);
-          free(t);free(t2);free(h);free($2);free($4);free($5);free($6);free($7); }
-    | SELECT columnas FROM tabla_ref where_clause group_clause order_clause limit_clause
-        { char *t = join3($2,$4,$5); char *t2 = join2(t,$6);
-          char *t3 = join2(t2,$7); char *h = join2(t3,$8);
-          $$ = nodo("SELECT",h);
-          free(t);free(t2);free(t3);free(h);free($2);free($4);free($5);free($6);free($7);free($8); }
-    | SELECT columnas FROM tabla_ref order_clause
-        { char *h = join3($2,$4,$5); $$ = nodo("SELECT",h); free(h);free($2);free($4);free($5); }
-    | SELECT columnas FROM tabla_ref order_clause limit_clause
-        { char *t = join3($2,$4,$5); char *h = join2(t,$6);
-          $$ = nodo("SELECT",h); free(t);free(h);free($2);free($4);free($5);free($6); }
-    | SELECT columnas FROM tabla_ref group_clause
-        { char *h = join3($2,$4,$5); $$ = nodo("SELECT",h); free(h);free($2);free($4);free($5); }
-    | SELECT columnas FROM tabla_ref limit_clause
-        { char *h = join3($2,$4,$5); $$ = nodo("SELECT",h); free(h);free($2);free($4);free($5); }
-    | SELECT columnas FROM tabla_ref join_clause where_clause order_clause
-        { char *t = join3($2,$4,$5); char *t2 = join2(t,$6);
-          char *h = join2(t2,$7); $$ = nodo("SELECT",h);
-          free(t);free(t2);free(h);free($2);free($4);free($5);free($6);free($7); }
-    | SELECT columnas FROM tabla_ref join_clause where_clause group_clause order_clause
-        { char *t = join3($2,$4,$5); char *t2 = join3(t,$6,$7);
-          char *h = join2(t2,$8); $$ = nodo("SELECT",h);
-          free(t);free(t2);free(h);free($2);free($4);free($5);free($6);free($7);free($8); }
+    : SELECT columnas FROM tabla_ref select_options
+        {
+            char *h = ($5[0]) ? join3($2,$4,$5) : join2($2,$4);
+            $$ = nodo("SELECT", h); free(h); free($2); free($4); free($5);
+        }
+    | SELECT DISTINCT columnas FROM tabla_ref select_options
+        {
+            char *d = nodo("DISTINCT","");
+            char *t = join3(d,$3,$5);
+            char *h = ($6[0]) ? join2(t,$6) : t;
+            $$ = nodo("SELECT", h);
+            free(d); if(h!=t) free(t); free(h); free($3); free($5); free($6);
+        }
+    ;
+
+select_options
+    : /* empty */
+        { $$ = strdup(""); }
+    | select_options join_clause
+        { $$ = ($1[0]) ? join2($1,$2) : strdup($2); free($1); free($2); }
+    | select_options where_clause
+        { $$ = ($1[0]) ? join2($1,$2) : strdup($2); free($1); free($2); }
+    | select_options group_clause
+        { $$ = ($1[0]) ? join2($1,$2) : strdup($2); free($1); free($2); }
+    | select_options order_clause
+        { $$ = ($1[0]) ? join2($1,$2) : strdup($2); free($1); free($2); }
+    | select_options limit_clause
+        { $$ = ($1[0]) ? join2($1,$2) : strdup($2); free($1); free($2); }
     ;
 
 columnas
@@ -221,11 +197,29 @@ join_clause
           char *h = join3($1,tbl,$6);
           $$ = nodo("JOIN",h);
           free($1);free(tbl);free(h);free($2);free($4);free($6); }
+    | join_tipo IDENTIFIER IDENTIFIER ON condicion
+        { char buf[256]; snprintf(buf,256,"%s %s",$2,$3);
+          char *tbl = nodo(buf,"");
+          char *h = join3($1,tbl,$5);
+          $$ = nodo("JOIN",h);
+          free($1);free(tbl);free(h);free($2);free($3);free($5); }
     | join_clause join_tipo IDENTIFIER ON condicion
         { char *tbl = nodo($3,"");
           char *sub = nodo("JOIN", join3($2,tbl,$5));
           $$ = join2($1, sub);
           free($1);free($2);free(tbl);free(sub);free($3);free($5); }
+    | join_clause join_tipo IDENTIFIER IDENTIFIER ON condicion
+        { char buf[256]; snprintf(buf,256,"%s %s",$3,$4);
+          char *tbl = nodo(buf,"");
+          char *sub = nodo("JOIN", join3($2,tbl,$6));
+          $$ = join2($1, sub);
+          free($1);free($2);free(tbl);free(sub);free($3);free($4);free($6); }
+    | join_clause join_tipo IDENTIFIER AS IDENTIFIER ON condicion
+        { char buf[256]; snprintf(buf,256,"%s AS %s",$3,$5);
+          char *tbl = nodo(buf,"");
+          char *sub = nodo("JOIN", join3($2,tbl,$7));
+          $$ = join2($1, sub);
+          free($1);free($2);free(tbl);free(sub);free($3);free($5);free($7); }
     ;
 
 join_tipo
@@ -280,6 +274,22 @@ expresion
     | IDENTIFIER DOT IDENTIFIER NEQ valor
         { char buf[256]; snprintf(buf,256,"%s.%s",$1,$3);
           char *op = nodo("!=",$5); char *id = nodo(buf,"");
+          $$ = nodo("EXPR",join2(id,op)); free(op);free(id);free($1);free($3);free($5); }
+    | IDENTIFIER DOT IDENTIFIER LT valor
+        { char buf[256]; snprintf(buf,256,"%s.%s",$1,$3);
+          char *op = nodo("<",$5); char *id = nodo(buf,"");
+          $$ = nodo("EXPR",join2(id,op)); free(op);free(id);free($1);free($3);free($5); }
+    | IDENTIFIER DOT IDENTIFIER GT valor
+        { char buf[256]; snprintf(buf,256,"%s.%s",$1,$3);
+          char *op = nodo(">",$5); char *id = nodo(buf,"");
+          $$ = nodo("EXPR",join2(id,op)); free(op);free(id);free($1);free($3);free($5); }
+    | IDENTIFIER DOT IDENTIFIER LE valor
+        { char buf[256]; snprintf(buf,256,"%s.%s",$1,$3);
+          char *op = nodo("<=",$5); char *id = nodo(buf,"");
+          $$ = nodo("EXPR",join2(id,op)); free(op);free(id);free($1);free($3);free($5); }
+    | IDENTIFIER DOT IDENTIFIER GE valor
+        { char buf[256]; snprintf(buf,256,"%s.%s",$1,$3);
+          char *op = nodo(">=",$5); char *id = nodo(buf,"");
           $$ = nodo("EXPR",join2(id,op)); free(op);free(id);free($1);free($3);free($5); }
     | IDENTIFIER IS NULLVAL
         { char *id = nodo($1,"");
@@ -361,11 +371,23 @@ lista_order
     ;
 
 orden_item
-    : IDENTIFIER        { $$ = nodo($1,""); free($1); }
-    | IDENTIFIER ASC    { char buf[256]; snprintf(buf,256,"%s ASC",$1);
-                          $$ = nodo(buf,""); free($1); }
-    | IDENTIFIER DESC   { char buf[256]; snprintf(buf,256,"%s DESC",$1);
-                          $$ = nodo(buf,""); free($1); }
+    : IDENTIFIER
+        { $$ = nodo($1,""); free($1); }
+    | IDENTIFIER ASC
+        { char buf[256]; snprintf(buf,256,"%s ASC",$1);
+          $$ = nodo(buf,""); free($1); }
+    | IDENTIFIER DESC
+        { char buf[256]; snprintf(buf,256,"%s DESC",$1);
+          $$ = nodo(buf,""); free($1); }
+    | IDENTIFIER DOT IDENTIFIER
+        { char buf[256]; snprintf(buf,256,"%s.%s",$1,$3);
+          $$ = nodo(buf,""); free($1); free($3); }
+    | IDENTIFIER DOT IDENTIFIER ASC
+        { char buf[256]; snprintf(buf,256,"%s.%s ASC",$1,$3);
+          $$ = nodo(buf,""); free($1); free($3); }
+    | IDENTIFIER DOT IDENTIFIER DESC
+        { char buf[256]; snprintf(buf,256,"%s.%s DESC",$1,$3);
+          $$ = nodo(buf,""); free($1); free($3); }
     ;
 
 limit_clause
@@ -464,20 +486,20 @@ funcion_agregacion
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("{\"valido\":false,\"mensaje\":\"No se proporcionó SQL\",\"tokens\":[],\"arbol\":null}\n");
+        printf("{\"valido\":false,\"mensaje\":\"No se proporciono SQL\",\"tokens\":[],\"arbol\":null}\n");
         return 1;
     }
 
     /* Leer SQL desde argv[1] */
-    extern YY_BUFFER_STATE yy_scan_string(const char *);
-    extern void yy_delete_buffer(YY_BUFFER_STATE);
+    extern void *yy_scan_string(const char *);
+    extern void  yy_delete_buffer(void *);
 
-    YY_BUFFER_STATE buf = yy_scan_string(argv[1]);
+    void *buf = yy_scan_string(argv[1]);
     yyparse();
     yy_delete_buffer(buf);
 
     if (es_valido) {
-        printf("{\"valido\":true,\"mensaje\":\"Consulta SQL válida\",\"tokens\":[%s],\"arbol\":%s}\n",
+        printf("{\"valido\":true,\"mensaje\":\"Consulta SQL valida\",\"tokens\":[%s],\"arbol\":%s}\n",
                tokens_json, arbol_json[0] ? arbol_json : "null");
     } else {
         printf("{\"valido\":false,\"mensaje\":\"%s\",\"tokens\":[%s],\"arbol\":null}\n",
