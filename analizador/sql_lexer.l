@@ -91,6 +91,20 @@ WS      [ \t\r]+
     else if (kw(yytext,"MIN"))        { agregar_token("KEYWORD",yytext); return MIN; }
     else if (kw(yytext,"MAX"))        { agregar_token("KEYWORD",yytext); return MAX; }
     else if (kw(yytext,"UNION"))      { agregar_token("KEYWORD",yytext); return UNION; }
+    else if (kw(yytext,"DROP"))       { agregar_token("KEYWORD",yytext); return DROP; }
+    else if (kw(yytext,"TABLE"))      { agregar_token("KEYWORD",yytext); return TABLE; }
+    else if (kw(yytext,"CREATE"))     { agregar_token("KEYWORD",yytext); return CREATE; }
+    else if (kw(yytext,"ALTER"))      { agregar_token("KEYWORD",yytext); return ALTER; }
+    else if (kw(yytext,"ADD"))        { agregar_token("KEYWORD",yytext); return ADD; }
+    else if (kw(yytext,"COLUMN"))     { agregar_token("KEYWORD",yytext); return COLUMN; }
+    else if (kw(yytext,"PRIMARY"))    { agregar_token("KEYWORD",yytext); return PRIMARY; }
+    else if (kw(yytext,"KEY"))        { agregar_token("KEYWORD",yytext); return KEY; }
+    else if (kw(yytext,"UNIQUE"))     { agregar_token("KEYWORD",yytext); return UNIQUE; }
+    else if (kw(yytext,"DEFAULT"))    { agregar_token("KEYWORD",yytext); return DEFAULT; }
+    else if (kw(yytext,"FOREIGN"))    { agregar_token("KEYWORD",yytext); return FOREIGN; }
+    else if (kw(yytext,"REFERENCES")) { agregar_token("KEYWORD",yytext); return REFERENCES; }
+    else if (kw(yytext,"MODIFY"))     { agregar_token("KEYWORD",yytext); return MODIFY; }
+    else if (kw(yytext,"IF"))         { agregar_token("KEYWORD",yytext); return IF; }
     else {
         agregar_token("IDENTIFIER", yytext);
         yylval.sval = strdup(yytext);

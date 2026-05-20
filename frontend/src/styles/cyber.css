@@ -137,6 +137,26 @@ body {
     0 0 40px var(--accent-blue-glow);
 }
 
+/* ── Code editor: ocultar scrollbar del pre (capa highlighting) ── */
+.sql-highlight-pre {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sql-highlight-pre::-webkit-scrollbar { display: none; }
+
+/* ── Placeholder del textarea transparente ── */
+.sql-editor-input::placeholder { color: #2a4a6a; opacity: 1; }
+
+/* ── SQL Syntax highlighting — paleta cyberpunk ── */
+.sqh-keyword      { color: #00d4ff; font-weight: 600; }
+.sqh-keyword-agg  { color: #00ff88; font-weight: 600; }
+.sqh-keyword-join { color: #c77dff; font-weight: 600; }
+.sqh-string       { color: #ffd700; }
+.sqh-number       { color: #ff9d00; }
+.sqh-comment      { color: #3a5a7a; font-style: italic; }
+.sqh-punct        { color: #7ab3d4; }
+.sqh-operator     { color: #ff6b9d; }
+
 /* ── React Flow canvas override ── */
 .react-flow__renderer { background: transparent !important; }
 

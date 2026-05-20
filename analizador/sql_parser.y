@@ -4,13 +4,14 @@
 #include <string.h>
 
 /* Declaraciones externas del lexer */
-extern int  yylex(void);
-extern int  linea_actual;
-extern char tokens_json[];
-extern int  token_count;
+extern int   yylex(void);
+extern int   linea_actual;
+extern char  tokens_json[];
+extern int   token_count;
+extern char *yytext;
 
 /* Buffer del árbol sintáctico */
-#define TREE_BUF 65536
+#define TREE_BUF 262144
 char arbol_json[TREE_BUF];
 int  arbol_len = 0;
 
@@ -20,8 +21,35 @@ char mensaje_error[512] = "";
 
 void yyerror(const char *msg) {
     es_valido = 0;
+    char buf[512];
+    const char *tok = (yytext && yytext[0]) ? yytext : "fin de entrada";
+
+    /* Traducir mensajes verbose de Bison al espanol */
+    if (strncmp(msg, "syntax error, unexpected ", 25) == 0) {
+        const char *rest = msg + 25;
+        const char *exp  = strstr(rest, ", expecting ");
+        char unexp[128]   = "";
+        char expected[256] = "";
+        if (exp) {
+            int len = (int)(exp - rest);
+            if (len > 127) len = 127;
+            strncpy(unexp, rest, len);
+            unexp[len] = '\0';
+            strncpy(expected, exp + 12, sizeof(expected) - 1);
+            snprintf(buf, sizeof(buf),
+                     "token inesperado '%s' - se esperaba: %s", unexp, expected);
+        } else {
+            strncpy(unexp, rest, sizeof(unexp) - 1);
+            snprintf(buf, sizeof(buf), "token inesperado '%s'", unexp);
+        }
+    } else {
+        strncpy(buf, msg, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = '\0';
+    }
+
     snprintf(mensaje_error, sizeof(mensaje_error),
-             "Error sintactico en linea %d: %s", linea_actual, msg);
+             "Error en linea %d (cerca de '%s'): %s",
+             linea_actual, tok, buf);
 }
 
 /* Helpers para construir JSON del árbol */
@@ -51,9 +79,11 @@ char* join3(const char *a, const char *b, const char *c) {
 }
 %}
 
+%error-verbose
+
 %union {
     char *sval;
-    char *nval; /* nodo JSON del árbol */
+    char *nval;
 }
 
 /* Tokens */
@@ -62,8 +92,10 @@ char* join3(const char *a, const char *b, const char *c) {
 %token GROUP BY HAVING ORDER ASC DESC LIMIT OFFSET AS DISTINCT
 %token AND OR NOT IN LIKE IS NULLVAL BETWEEN EXISTS
 %token COUNT SUM AVG MIN MAX UNION
-%token LPAREN RPAREN COMMA SEMICOLON DOT STAR
-%token EQ NEQ LT GT LE GE
+%token DROP TABLE CREATE ALTER ADD COLUMN PRIMARY KEY
+%token UNIQUE DEFAULT FOREIGN REFERENCES MODIFY IF
+%token LPAREN "(" RPAREN ")" COMMA "," SEMICOLON ";" DOT "." STAR "*"
+%token EQ "=" NEQ "!=" LT "<" GT ">" LE "<=" GE ">="
 %token <sval> IDENTIFIER NUMBER STRING
 
 %type <nval> programa consulta select_stmt insert_stmt update_stmt delete_stmt
@@ -72,6 +104,8 @@ char* join3(const char *a, const char *b, const char *c) {
 %type <nval> group_clause having_clause order_clause limit_clause
 %type <nval> lista_order orden_item lista_asignaciones asignacion
 %type <nval> lista_valores funcion_agregacion subconsulta select_options
+%type <nval> drop_stmt alter_stmt create_stmt
+%type <nval> lista_columnas_def columna_def tipo_dato constraints_opt
 
 %left OR
 %left AND
@@ -93,10 +127,16 @@ consulta
     | insert_stmt SEMICOLON  { $$ = nodo("CONSULTA", $1); free($1); }
     | update_stmt SEMICOLON  { $$ = nodo("CONSULTA", $1); free($1); }
     | delete_stmt SEMICOLON  { $$ = nodo("CONSULTA", $1); free($1); }
+    | drop_stmt   SEMICOLON  { $$ = nodo("CONSULTA", $1); free($1); }
+    | alter_stmt  SEMICOLON  { $$ = nodo("CONSULTA", $1); free($1); }
+    | create_stmt SEMICOLON  { $$ = nodo("CONSULTA", $1); free($1); }
     | select_stmt            { $$ = nodo("CONSULTA", $1); free($1); }
     | insert_stmt            { $$ = nodo("CONSULTA", $1); free($1); }
     | update_stmt            { $$ = nodo("CONSULTA", $1); free($1); }
     | delete_stmt            { $$ = nodo("CONSULTA", $1); free($1); }
+    | drop_stmt              { $$ = nodo("CONSULTA", $1); free($1); }
+    | alter_stmt             { $$ = nodo("CONSULTA", $1); free($1); }
+    | create_stmt            { $$ = nodo("CONSULTA", $1); free($1); }
     ;
 
 /* ─── SELECT ─── */
@@ -155,8 +195,10 @@ columna
           $$ = nodo(buf,""); free($1); free($3); free($5); }
     | funcion_agregacion            { $$ = $1; }
     | funcion_agregacion AS IDENTIFIER
-        { char buf[512]; snprintf(buf,512,"%s AS %s",$1,$3);
-          $$ = nodo(buf,""); free($1); free($3); }
+        { char *alias = nodo($3,"");
+          char *h = join2($1, alias);
+          $$ = nodo("AS", h);
+          free(alias); free(h); free($1); free($3); }
     ;
 
 tabla_ref
@@ -170,9 +212,14 @@ tabla_ref
           $$ = nodo("TABLA", nodo(buf,"")); free($1); free($2); }
     | LPAREN select_stmt RPAREN AS IDENTIFIER
         { char *sub = nodo("SUBQUERY",$2);
-          char buf[256]; snprintf(buf,256,"(%s) AS %s","subquery",$5);
           $$ = nodo("TABLA", join2(sub, nodo($5,"")));
           free(sub); free($2); free($5); }
+    | LPAREN select_stmt RPAREN IDENTIFIER
+        { char *sub = nodo("SUBQUERY",$2);
+          $$ = nodo("TABLA", join2(sub, nodo($4,"")));
+          free(sub); free($2); free($4); }
+    | LPAREN select_stmt RPAREN
+        { $$ = nodo("TABLA", nodo("SUBQUERY",$2)); free($2); }
     | lista_tablas  { $$ = nodo("TABLAS", $1); free($1); }
     ;
 
@@ -347,6 +394,8 @@ valor
     | IDENTIFIER DOT IDENTIFIER
         { char buf[256]; snprintf(buf,256,"%s.%s",$1,$3);
           $$ = nodo(buf,""); free($1);free($3); }
+    | LPAREN select_stmt RPAREN
+        { $$ = nodo("SUBQUERY",$2); free($2); }
     ;
 
 group_clause
@@ -413,6 +462,17 @@ insert_stmt
           char *h = join3(tbl,cols,vals);
           $$ = nodo("INSERT INTO",h);
           free(tbl);free(cols);free(vals);free(h);free($3);free($5);free($9); }
+    | INSERT INTO IDENTIFIER select_stmt
+        { char *tbl = nodo($3,"");
+          char *h = join2(tbl,$4);
+          $$ = nodo("INSERT INTO",h);
+          free(tbl);free(h);free($3);free($4); }
+    | INSERT INTO IDENTIFIER LPAREN lista_columnas RPAREN select_stmt
+        { char *tbl = nodo($3,"");
+          char *cols = nodo("COLUMNS",$5);
+          char *h = join3(tbl,cols,$7);
+          $$ = nodo("INSERT INTO",h);
+          free(tbl);free(cols);free(h);free($3);free($5);free($7); }
     ;
 
 lista_valores
@@ -462,24 +522,134 @@ delete_stmt
           free(tbl);free(wh);free(h);free($3);free($5); }
     ;
 
+/* ─── DROP ─── */
+drop_stmt
+    : DROP TABLE IDENTIFIER
+        { char *tbl = nodo($3,"");
+          $$ = nodo("DROP TABLE",tbl);
+          free(tbl);free($3); }
+    | DROP TABLE IF EXISTS IDENTIFIER
+        { char *tbl = nodo($5,"");
+          $$ = nodo("DROP TABLE IF EXISTS",tbl);
+          free(tbl);free($5); }
+    ;
+
+/* ─── ALTER ─── */
+alter_stmt
+    : ALTER TABLE IDENTIFIER ADD COLUMN columna_def
+        { char *tbl = nodo($3,"");
+          char *op  = nodo("ADD COLUMN",$6);
+          char *h   = join2(tbl,op);
+          $$ = nodo("ALTER TABLE",h);
+          free(tbl);free(op);free(h);free($3);free($6); }
+    | ALTER TABLE IDENTIFIER DROP COLUMN IDENTIFIER
+        { char *tbl = nodo($3,"");
+          char *col = nodo($6,"");
+          char *op  = nodo("DROP COLUMN",col);
+          char *h   = join2(tbl,op);
+          $$ = nodo("ALTER TABLE",h);
+          free(tbl);free(col);free(op);free(h);free($3);free($6); }
+    | ALTER TABLE IDENTIFIER MODIFY COLUMN columna_def
+        { char *tbl = nodo($3,"");
+          char *op  = nodo("MODIFY COLUMN",$6);
+          char *h   = join2(tbl,op);
+          $$ = nodo("ALTER TABLE",h);
+          free(tbl);free(op);free(h);free($3);free($6); }
+    ;
+
+/* ─── CREATE ─── */
+create_stmt
+    : CREATE TABLE IDENTIFIER LPAREN lista_columnas_def RPAREN
+        { char *tbl  = nodo($3,"");
+          char *cols = nodo("COLUMNAS",$5);
+          char *h    = join2(tbl,cols);
+          $$ = nodo("CREATE TABLE",h);
+          free(tbl);free(cols);free(h);free($3);free($5); }
+    | CREATE TABLE IF NOT EXISTS IDENTIFIER LPAREN lista_columnas_def RPAREN
+        { char *tbl  = nodo($6,"");
+          char *cols = nodo("COLUMNAS",$8);
+          char *h    = join2(tbl,cols);
+          $$ = nodo("CREATE TABLE IF NOT EXISTS",h);
+          free(tbl);free(cols);free(h);free($6);free($8); }
+    ;
+
+lista_columnas_def
+    : columna_def                          { $$ = $1; }
+    | lista_columnas_def COMMA columna_def { $$ = join2($1,$3); free($1);free($3); }
+    ;
+
+columna_def
+    : IDENTIFIER tipo_dato constraints_opt
+        { char *h = ($3[0]) ? join2($2,$3) : strdup($2);
+          $$ = nodo($1,h); free(h);free($1);free($2);free($3); }
+    | PRIMARY KEY LPAREN lista_columnas RPAREN
+        { $$ = nodo("PRIMARY KEY",$4); free($4); }
+    | FOREIGN KEY LPAREN IDENTIFIER RPAREN REFERENCES IDENTIFIER LPAREN IDENTIFIER RPAREN
+        { char buf[512]; snprintf(buf,512,"%s->%s.%s",$4,$7,$9);
+          $$ = nodo(buf,""); free($4);free($7);free($9); }
+    ;
+
+tipo_dato
+    : IDENTIFIER
+        { $$ = nodo($1,""); free($1); }
+    | IDENTIFIER LPAREN NUMBER RPAREN
+        { char buf[256]; snprintf(buf,256,"%s(%s)",$1,$3);
+          $$ = nodo(buf,""); free($1);free($3); }
+    | IDENTIFIER LPAREN NUMBER COMMA NUMBER RPAREN
+        { char buf[256]; snprintf(buf,256,"%s(%s,%s)",$1,$3,$5);
+          $$ = nodo(buf,""); free($1);free($3);free($5); }
+    ;
+
+constraints_opt
+    : /* empty */
+        { $$ = strdup(""); }
+    | constraints_opt NOT NULLVAL
+        { char *c = nodo("NOT NULL","");
+          $$ = ($1[0]) ? join2($1,c) : strdup(c); free($1);free(c); }
+    | constraints_opt PRIMARY KEY
+        { char *c = nodo("PRIMARY KEY","");
+          $$ = ($1[0]) ? join2($1,c) : strdup(c); free($1);free(c); }
+    | constraints_opt UNIQUE
+        { char *c = nodo("UNIQUE","");
+          $$ = ($1[0]) ? join2($1,c) : strdup(c); free($1);free(c); }
+    | constraints_opt DEFAULT valor
+        { char *c = nodo("DEFAULT",$3);
+          $$ = ($1[0]) ? join2($1,c) : strdup(c); free($1);free(c);free($3); }
+    ;
+
 /* ─── Funciones de agregación ─── */
 funcion_agregacion
     : COUNT LPAREN STAR RPAREN      { $$ = nodo("COUNT(*)", ""); }
     | COUNT LPAREN IDENTIFIER RPAREN
         { char buf[128]; snprintf(buf,128,"COUNT(%s)",$3);
           $$ = nodo(buf,""); free($3); }
+    | COUNT LPAREN IDENTIFIER DOT IDENTIFIER RPAREN
+        { char buf[128]; snprintf(buf,128,"COUNT(%s.%s)",$3,$5);
+          $$ = nodo(buf,""); free($3);free($5); }
     | SUM LPAREN IDENTIFIER RPAREN
         { char buf[128]; snprintf(buf,128,"SUM(%s)",$3);
           $$ = nodo(buf,""); free($3); }
+    | SUM LPAREN IDENTIFIER DOT IDENTIFIER RPAREN
+        { char buf[128]; snprintf(buf,128,"SUM(%s.%s)",$3,$5);
+          $$ = nodo(buf,""); free($3);free($5); }
     | AVG LPAREN IDENTIFIER RPAREN
         { char buf[128]; snprintf(buf,128,"AVG(%s)",$3);
           $$ = nodo(buf,""); free($3); }
+    | AVG LPAREN IDENTIFIER DOT IDENTIFIER RPAREN
+        { char buf[128]; snprintf(buf,128,"AVG(%s.%s)",$3,$5);
+          $$ = nodo(buf,""); free($3);free($5); }
     | MIN LPAREN IDENTIFIER RPAREN
         { char buf[128]; snprintf(buf,128,"MIN(%s)",$3);
           $$ = nodo(buf,""); free($3); }
+    | MIN LPAREN IDENTIFIER DOT IDENTIFIER RPAREN
+        { char buf[128]; snprintf(buf,128,"MIN(%s.%s)",$3,$5);
+          $$ = nodo(buf,""); free($3);free($5); }
     | MAX LPAREN IDENTIFIER RPAREN
         { char buf[128]; snprintf(buf,128,"MAX(%s)",$3);
           $$ = nodo(buf,""); free($3); }
+    | MAX LPAREN IDENTIFIER DOT IDENTIFIER RPAREN
+        { char buf[128]; snprintf(buf,128,"MAX(%s.%s)",$3,$5);
+          $$ = nodo(buf,""); free($3);free($5); }
     ;
 
 %%

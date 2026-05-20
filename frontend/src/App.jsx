@@ -108,68 +108,14 @@ export default function App() {
             }}>Ctrl+Enter · validar</span>
           </div>
 
-          {/* Textarea */}
-          <textarea
-            value={sql}
-            onChange={e => setSql(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Tab') {
-                e.preventDefault();
-                const s = e.target.selectionStart, end = e.target.selectionEnd;
-                const next = sql.slice(0, s) + '  ' + sql.slice(end);
-                setSql(next);
-                requestAnimationFrame(() => {
-                  e.target.selectionStart = s + 2;
-                  e.target.selectionEnd   = s + 2;
-                });
-              }
-              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                e.preventDefault();
-                handleValidate();
-              }
-            }}
-            placeholder={`-- Escribe tu consulta SQL aquí\nSELECT nombre, edad\nFROM empleados\nWHERE edad > 25\nORDER BY nombre ASC;`}
-            spellCheck={false}
-            autoCorrect="off"
-            className="sql-editor"
-            style={{ flex: 1, resize: 'none', borderRadius: 0, border: 'none',
-                     borderBottom: '1px solid #ffd70015' }}
-          />
-
-          {/* Botón VALIDAR */}
-          <div style={{ padding: '12px 20px', flexShrink: 0 }}>
-            <motion.button
-              onClick={handleValidate}
-              disabled={loading || !sql.trim()}
-              whileHover={!loading && sql.trim()
-                ? { scale: 1.02, boxShadow: '0 0 28px #ffd70099, 0 0 56px #ffd70033' }
-                : {}}
-              whileTap={!loading && sql.trim() ? { scale: 0.97 } : {}}
-              style={{
-                width: '100%', padding: '11px 0',
-                fontFamily: 'Orbitron, sans-serif', fontSize: 13,
-                letterSpacing: '0.25em', textTransform: 'uppercase',
-                border: `1px solid ${loading || !sql.trim() ? '#00d4ff22' : '#ffd700'}`,
-                borderRadius: 6, cursor: loading || !sql.trim() ? 'not-allowed' : 'pointer',
-                color: loading || !sql.trim() ? '#00d4ff33' : '#ffd700',
-                background: loading || !sql.trim() ? 'transparent' : '#ffd70008',
-                transition: 'background 0.2s',
-              }}
-            >
-              {loading
-                ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <motion.span
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                      style={{ display: 'inline-block', width: 14, height: 14,
-                               border: '2px solid #00d4ff', borderTopColor: 'transparent',
-                               borderRadius: '50%' }}
-                    />
-                    Analizando...
-                  </span>
-                : '⚡ Validar'
-              }
-            </motion.button>
+          {/* Editor con highlighting */}
+          <div style={{ flex: 1, padding: '12px 20px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <SqlEditor
+              value={sql}
+              onChange={setSql}
+              onValidate={handleValidate}
+              loading={loading}
+            />
           </div>
         </div>
 
