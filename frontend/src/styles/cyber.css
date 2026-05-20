@@ -1,0 +1,143 @@
+/* ── Variables CSS globales ciberpunk ── */
+:root {
+  --bg-primary:       #050a14;
+  --bg-secondary:     #0a1628;
+  --bg-card:          #0d1f3c;
+  --accent-blue:      #00d4ff;
+  --accent-blue-dark: #0066cc;
+  --accent-blue-glow: #00aaff;
+  --accent-yellow:    #ffd700;
+  --accent-yellow-dim:#cc9900;
+  --text-primary:     #e0f0ff;
+  --text-secondary:   #7ab3d4;
+  --border-cyber:     #00d4ff33;
+  --success:          #00ff88;
+  --error:            #ff3366;
+}
+
+/* ── Reset base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Share Tech Mono', monospace;
+  /* Grid ciberpunk de fondo */
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ── Scrollbar ciberpunk ── */
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb        { background: var(--accent-blue-dark); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover  { background: var(--accent-blue); }
+
+/* ── Selección de texto ── */
+::selection {
+  background: #00d4ff33;
+  color: #e0f0ff;
+}
+
+/* ── Glow en bordes de paneles ── */
+.panel-cyber {
+  background:    var(--bg-card);
+  border:        1px solid var(--border-cyber);
+  border-radius: 8px;
+  box-shadow:    0 0 12px #00d4ff22, inset 0 0 20px #00000044;
+}
+
+/* ── Línea decorativa con glow ── */
+.cyber-line {
+  height:     1px;
+  background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+  box-shadow: 0 0 8px var(--accent-blue);
+  margin:     0;
+}
+
+/* ── Efecto scanline overlay ── */
+.scanlines {
+  pointer-events: none;
+  position:       fixed;
+  inset:          0;
+  z-index:        9999;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent             0px,
+    transparent             3px,
+    rgba(0, 0, 0, 0.08)    3px,
+    rgba(0, 0, 0, 0.08)    4px
+  );
+}
+
+/* ── Textarea del editor SQL ── */
+.sql-editor {
+  background:    #020810;
+  border:        1px solid var(--border-cyber);
+  border-radius: 6px;
+  color:         var(--text-primary);
+  font-family:   'Share Tech Mono', monospace;
+  font-size:     0.92rem;
+  line-height:   1.6;
+  resize:        vertical;
+  outline:       none;
+  transition:    border-color 0.2s, box-shadow 0.2s;
+  width:         100%;
+  padding:       1rem;
+}
+
+.sql-editor:focus {
+  border-color: var(--accent-blue);
+  box-shadow:   0 0 0 2px #00d4ff22, 0 0 16px #00d4ff33;
+}
+
+.sql-editor::placeholder {
+  color: #2a4a6a;
+}
+
+/* ── Badge resultado válido ── */
+.badge-valid {
+  background: #00ff8811;
+  border:     1px solid var(--success);
+  color:      var(--success);
+  box-shadow: 0 0 12px #00ff8844;
+}
+
+/* ── Badge resultado inválido ── */
+.badge-invalid {
+  background: #ff336611;
+  border:     1px solid var(--error);
+  color:      var(--error);
+  box-shadow: 0 0 12px #ff336644;
+}
+
+/* ── Animación de parpadeo de cursor ── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.cursor-blink { animation: blink 1s step-end infinite; }
+
+/* ── Gradiente de cabecera ── */
+.header-glow {
+  text-shadow:
+    0 0 10px var(--accent-blue),
+    0 0 20px var(--accent-blue),
+    0 0 40px var(--accent-blue-glow);
+}
+
+/* ── React Flow canvas override ── */
+.react-flow__renderer        { background: transparent !important; }
+.react-flow__edge-path       { stroke: #00d4ff !important; stroke-width: 2 !important; }
+.react-flow__edge-path:hover { stroke: #ffd700 !important; }

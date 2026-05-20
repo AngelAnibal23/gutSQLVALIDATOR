@@ -1,32 +1,48 @@
-# Dependencies
+# ── Node.js ──
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Build output
+# ── Build output ──
 dist/
 dist-ssr/
+build/
 
-# Environment variables
+# ── Vite ──
+.vite/
+
+# ── Analizador C — archivos generados por Flex/Bison/GCC ──
+analizador/lex.yy.c
+analizador/sql_parser.tab.c
+analizador/sql_parser.tab.h
+analizador/validador.exe
+analizador/validador
+analizador/*.o
+analizador/*.out
+analizador/stack.hh
+analizador/location.hh
+
+# ── Variables de entorno ──
 .env
 .env.local
 .env.*.local
 
-# Logs
+# ── Logs ──
 logs/
 *.log
-npm-debug.log*
 
-# Editor
-.vscode/
+# ── Editor ──
 .idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 
-# OS
+# ── OS ──
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Cache
+# ── Cache ──
 .cache/
-.vite/
